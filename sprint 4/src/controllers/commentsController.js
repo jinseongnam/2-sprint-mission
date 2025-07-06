@@ -13,6 +13,11 @@ export async function updateComment(req, res) {
     throw new NotFoundError('comment', id);
   }
 
+  
+  if (existingComment.userId !== req.user.userId) {
+    return res.status(403).json({ message: '수정 권한이 없습니다.' });
+  }
+
   const updatedComment = await prismaClient.comment.update({
     where: { id },
     data: { content },
@@ -27,6 +32,11 @@ export async function deleteComment(req, res) {
   const existingComment = await prismaClient.comment.findUnique({ where: { id } });
   if (!existingComment) {
     throw new NotFoundError('comment', id);
+  }
+
+  
+  if (existingComment.userId !== req.user.userId) {
+    return res.status(403).json({ message: '삭제 권한이 없습니다.' });
   }
 
   await prismaClient.comment.delete({ where: { id } });

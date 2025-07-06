@@ -5,3 +5,8 @@ export const CreateUserBodyStruct = object({
   nickname: string(),
   password: string(),
 });
+
+export const LoginUserBodyStruct = object({
+  email: string(),
+  password: string(),
+});
