@@ -32,10 +32,10 @@ CREATE TABLE posts (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 4. 댓글(Comment) 테이블
-CREATE TABLE comments (
+-- 4. 상품 댓글(Product Comment) 테이블
+CREATE TABLE product_comments (
     id SERIAL PRIMARY KEY,
-    post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     user_id INTEGER NOT NULL REFERENCES users(id),
     content TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -48,4 +48,13 @@ CREATE TABLE trades (
     buyer_id INTEGER NOT NULL REFERENCES users(id),
     status VARCHAR(20) DEFAULT '예약',   -- 예약, 거래완료 등
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 6. 상품 좋아요(Product Like) 테이블
+CREATE TABLE product_likes (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE (product_id, user_id) -- 중복 좋아요 방지
 );
