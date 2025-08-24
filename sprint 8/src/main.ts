@@ -1,110 +1,90 @@
-import { ElectronicProduct } from './models/ElectronicProduct';
-import { Product } from './models/Product';
-import * as ProductService from './services/ProductService';
-import * as ArticleService from './services/ArticleService';
-import type { Product as ProductType } from './services/ProductService';
-import type { Article } from './services/ArticleService';
+// src/main.ts
+import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import { PrismaClient } from '@prisma/client';
 
-// Product 객체 배열 타입 명시
-async function getProductListAndInstantiate(): Promise<void> {
-  const rawProducts = await ProductService.getProductList(1, 20, '');
+import NotificationRepository from './notification/repository';
+import NotificationService from './notification/service';
+import makeNotificationRouter from './notification/router';
 
-  const products: (Product | ElectronicProduct)[] = [];
-  for (const rawProduct of rawProducts) {
-    if (rawProduct.tags.includes('전자제품')) {
-      products.push(
-        new ElectronicProduct(
-          rawProduct.name,
-          rawProduct.description,
-          rawProduct.price,
-          rawProduct.tags,
-          rawProduct.images,
-          rawProduct.favoriteCount ?? 0,
-          rawProduct.manufacturer ?? ''
-        )
-      );
-    } else {
-      products.push(
-        new Product(
-          rawProduct.name,
-          rawProduct.description,
-          rawProduct.price,
-          rawProduct.tags,
-          rawProduct.images,
-          rawProduct.favoriteCount ?? 0
-        )
-      );
-    }
+// ➕ 트리거 라우터 추가
+import ProductService from './product/service';
+import makeProductRouter from './product/router';
+import ArticleService from './articles/service';
+import makeArticleRouter from './articles/router';
+
+const app = express();
+app.use(express.json());
+app.use(express.static('public'));
+
+const prisma = new PrismaClient();
+
+// 임시 인증(테스트용): DB에 유저 없으면 생성 후 req.user 주입
+app.use(async (req, _res, next) => {
+  try {
+    const found = await prisma.user.findFirst({ select: { id: true } });
+    const user =
+      found ??
+      (await prisma.user.create({
+        data: { email: 'test@example.com', nickname: 'test', password: 'test' },
+        select: { id: true },
+      }));
+    (req as any).user = { id: user.id };
+    next();
+  } catch (e) {
+    next(e);
   }
+});
 
-  console.log(products);
-}
+// ── Socket.IO ────────────────────────────────────────────────
+const server = createServer(app);
+const io = new Server(server, { cors: { origin: '*' } });
 
-async function testProductService(): Promise<void> {
-  const getProductListResponse = await ProductService.getProductList(1, 20, '');
-  if (getProductListResponse.length === 0) {
-    console.log('No products found');
-    return;
+// 소켓 인증(테스트용): DB 유저 보장 후 user:{id} 룸에 합류
+io.use(async (socket, next) => {
+  try {
+    const found = await prisma.user.findFirst({ select: { id: true } });
+    const user =
+      found ??
+      (await prisma.user.create({
+        data: { email: 'test@example.com', nickname: 'test', password: 'test' },
+        select: { id: true },
+      }));
+    (socket as any).userId = user.id;
+    next();
+  } catch (e) {
+    next(e as Error);
   }
-  const getProductResponse = await ProductService.getProduct(getProductListResponse[0].id);
+});
 
-  const createProductResponse = await ProductService.createProduct(
-    '포토카드',
-    '액자 포함',
-    10000,
-    undefined,
-    ['소품'],
-    ['https://picsum.photos/200/300']
-  );
-  const patchProductResponse = await ProductService.patchProduct(
-    createProductResponse.id,
-    createProductResponse.name,
-    '액자 미포함',
-    10000,
-    createProductResponse.tags,
-    createProductResponse.images
-  );
-  await ProductService.deleteProduct(createProductResponse.id);
+io.on('connection', (socket) => {
+  const userId = (socket as any).userId as number;
+  socket.join(`user:${userId}`);
+});
 
-  console.log(getProductListResponse);
-  console.log(getProductResponse);
-  console.log(createProductResponse);
-  console.log(patchProductResponse);
-  // 삭제 함수는 반환값이 없으므로 별도 출력 X
-}
+// ── DI ───────────────────────────────────────────────────────
+const notifSvc = new NotificationService(new NotificationRepository(prisma), io);
 
-async function testArticleService(): Promise<void> {
-  const getArticleListResponse = await ArticleService.getArticleList(1, 20, '');
-  if (getArticleListResponse.length === 0) {
-    console.log('No articles found');
-    return;
-  }
-  const getArticleResponse = await ArticleService.getArticle(getArticleListResponse[0].id);
+// 알림 라우터
+app.use('/notifications', makeNotificationRouter(notifSvc));
 
-  const createArticleResponse = await ArticleService.createArticle(
-    '안녕하세요',
-    '내용입니다',
-    'https://picsum.photos/200'
-  );
-  const patchArticleResponse = await ArticleService.patchArticle(
-    createArticleResponse.id,
-    createArticleResponse.title,
-    '앞으로 잘 부탁드립니다.',
-    createArticleResponse.image
-  );
-  await ArticleService.deleteArticle(createArticleResponse.id);
+// ➕ 상품/게시글 라우터 (가격변동/댓글 트리거)
+const productSvc = new ProductService(prisma, notifSvc);
+app.use('/products', makeProductRouter(productSvc));
 
-  console.log(getArticleListResponse);
-  console.log(getArticleResponse);
-  console.log(createArticleResponse);
-  console.log(patchArticleResponse);
-  // 삭제 함수는 반환값이 없으므로 별도 출력 X
-}
+const articleSvc = new ArticleService(prisma, notifSvc);
+app.use('/articles', makeArticleRouter(articleSvc));
 
-async function main(): Promise<void> {
-  await getProductListAndInstantiate();
-  await testProductService();
-  await testArticleService();
-}
+app.get('/', (_req, res) => res.send('OK'));
 
-main();
+// ── 서버 시작/종료 ────────────────────────────────────────────
+const PORT = Number(process.env.PORT) || 3000;
+server.listen(PORT, () => console.log(`Server running on ${PORT}`));
+
+const graceful = async () => {
+  await prisma.$disconnect();
+  server.close(() => process.exit(0));
+};
+process.on('SIGINT', graceful);
+process.on('SIGTERM', graceful);
