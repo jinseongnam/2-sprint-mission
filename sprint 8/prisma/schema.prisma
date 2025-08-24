@@ -8,19 +8,21 @@ datasource db {
 }
 
 model User {
-  id            Int           @id @default(autoincrement())
-  email         String        @unique
-  nickname      String        @unique
-  image         String?
-  password      String
-  products      Product[]
-  articles      Article[]
-  comments      Comment[]
-  likedProducts ProductLike[]
-  likedArticles ArticleLike[]
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  refreshToken  String?       
+  id                  Int             @id @default(autoincrement())
+  email               String          @unique
+  nickname            String          @unique
+  image               String?
+  password            String
+  products            Product[]
+  articles            Article[]
+  comments            Comment[]
+  likedProducts       ProductLike[]
+  likedArticles       ArticleLike[]
+  notifications       Notification[]                  // 내가 받은 알림
+  actedNotifications  Notification[] @relation("NotificationActor") // 내가 발생시킨 알림
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  refreshToken        String?       
 }
 
 model Product {
@@ -34,6 +36,7 @@ model Product {
   user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId         Int
   likedBy        ProductLike[]
+  notifications  Notification[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 }
@@ -47,6 +50,7 @@ model Article {
   user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId         Int
   likedBy        ArticleLike[]
+  notifications  Notification[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 }
@@ -84,4 +88,28 @@ model ArticleLike {
   createdAt DateTime @default(now())
 
   @@unique([userId, articleId])
+}
+
+enum NotificationType {
+  PRICE_CHANGED
+  COMMENT_ADDED
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    Int
+  actor     User?            @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorId   Int?
+  type      NotificationType
+  product   Product?         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId Int?
+  article   Article?         @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  articleId Int?
+  message   String
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead, createdAt])
 }
