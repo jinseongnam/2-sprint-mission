@@ -18,8 +18,8 @@ model User {
   comments            Comment[]
   likedProducts       ProductLike[]
   likedArticles       ArticleLike[]
-  notifications       Notification[]                  // 내가 받은 알림
-  actedNotifications  Notification[] @relation("NotificationActor") // 내가 발생시킨 알림
+  notifications       Notification[]                  
+  actedNotifications  Notification[] @relation("NotificationActor") 
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
   refreshToken        String?       
