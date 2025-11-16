@@ -1,21 +1,3 @@
-/**
- * 정렬 알고리즘 모음
- *
- * ✅ 공통 특징
- * - 모든 함수는 오름차순(ascending) 정렬을 수행합니다.
- *
- * ✅ 함수별 규약
- * - selectionSort(arr):   숫자형 배열을 받아 "배열 자체를" 정렬 (in-place)
- * - insertionSort(arr):   숫자형 배열을 받아 "배열 자체를" 정렬 (in-place)
- * - mergeSort(arr):       숫자형 배열을 받아 "새로운 정렬된 배열"을 반환
- * - quickSort(arr):       숫자형 배열을 받아 "배열 자체를" 정렬 (in-place)
- *
- * 각 알고리즘의 시간 복잡도 (Average 기준)
- * - Selection Sort : O(n²)
- * - Insertion Sort : O(n²)
- * - Merge Sort     : O(n log n)
- * - Quick Sort     : O(n log n)  (최악: O(n²))
- */
 
 /* ------------------------------------------------------------------ */
 /* 🟦 선택 정렬 (Selection Sort, in-place)                            */
@@ -172,23 +154,3 @@ function partition(arr, left, right) {
   return i + 1;
 }
 
-/* ------------------------------------------------------------------ */
-/* 🔎 (선택) 간단 테스트용 예시
- *
- * 아래 코드는 과제 제출 시 포함해도 되고, 주석 처리해 둔 상태로 놔도 됩니다.
- * 필요할 때 주석만 풀어서 node로 바로 테스트 가능합니다.
- * ------------------------------------------------------------------ */
-
-// const sample = [5, 3, 8, 4, 2];
-// console.log('원본:', sample.slice());
-// selectionSort(sample);
-// console.log('선택 정렬:', sample);
-
-// const sample2 = [9, 1, 7, 3, 5];
-// console.log('삽입 정렬:', insertionSort(sample2.slice()));
-// console.log('병합 정렬:', mergeSort(sample2.slice()));
-// console.log('퀵 정렬:', (() => {
-//   const a = sample2.slice();
-//   quickSort(a);
-//   return a;
-// })());
